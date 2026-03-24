@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Brompton — Bike + Transit Navigation
 
-## Getting Started
+Find the fastest *and* cheapest routes across London by combining your folding/portable bike with the tube, overground, and Elizabeth line.
 
-First, run the development server:
+## The Idea
+
+Instead of just walking to the nearest station, Brompton enumerates all stations within cycling range of your origin and destination, then finds the Pareto-optimal combinations — trading off **total journey time** against **fare paid**.
+
+**Example:** Richmond → Imperial College London
+- 🚶 Transit only: 45 min, £3.50 (walk Richmond → tube all the way to zone 1)
+- 🚴 Optimised: 38 min, £2.10 (cycle to Kew Gardens → District line → Earl's Court → cycle to Imperial)
+
+## Setup
+
+### 1. Install
+
+```bash
+npm install
+```
+
+### 2. API Keys
+
+Copy the env template and fill in your keys:
+
+```bash
+cp .env.example .env.local
+```
+
+You need three keys:
+
+| Variable | Where to get it |
+|---|---|
+| `GOOGLE_SERVER_KEY` | [Google Cloud Console](https://console.cloud.google.com) — enable **Directions API**, **Distance Matrix API**, **Places API** |
+| `NEXT_PUBLIC_MAPS_JS_KEY` | Same project — enable **Maps JavaScript API**, restrict to your domain |
+| `TFL_APP_KEY` | [TfL API Portal](https://api-portal.tfl.gov.uk/) — free registration, 500 req/min |
+
+### 3. Run
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# → http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Architecture
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+src/
+├── app/
+│   ├── page.tsx                    # Home page
+│   └── api/
+│       ├── routes/                 # POST — main route search
+│       ├── cycling-detail/         # POST — detailed cycling polylines
+│       ├── autocomplete/           # GET — Places Autocomplete proxy
+│       └── geocode/                # GET — Place Details (lat/lng lookup)
+├── components/
+│   ├── RouteApp.tsx                # Top-level state owner
+│   ├── map/                        # MapContainer, RoutePolylines, StepMarkers
+│   ├── search/                     # SearchPanel, PlaceAutocomplete, ValueSlider
+│   └── results/                    # RouteOptions, RouteOptionCard, LegList, SavingsBadge
+└── lib/
+    └── routing/
+        ├── findOptimalRoutes.ts    # Core algorithm
+        ├── paretoFilter.ts         # Pareto-frontier computation
+        ├── findNearbyStations.ts   # TfL StopPoint API
+        ├── batchCyclingTimes.ts    # Google Distance Matrix API
+        ├── getTransitJourney.ts    # TfL Journey Planner API
+        ├── getTransitFare.ts       # TfL FareTo API
+        └── getCyclingDetail.ts     # Google Directions API
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## The Algorithm
 
-## Learn More
+1. Find all tube/rail stations within 2.5 km of origin and destination (TfL StopPoint API)
+2. Batch-fetch cycling times via Google Distance Matrix API (2 calls total regardless of station count)
+3. Prune stations further than 20 min cycling
+4. For all viable (boarding, alighting) pairs, fetch transit time and fare in parallel
+5. Pareto-filter: discard routes dominated on both time AND cost
+6. Label and return: **Fastest**, **Cheapest**, **Best Value** (weighted by your time preference), **Baseline** (transit only)
+7. Fetch detailed cycling polylines only for the returned options
 
-To learn more about Next.js, take a look at the following resources:
+## Tests
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm test
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploy
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npx vercel
+# Set GOOGLE_SERVER_KEY, NEXT_PUBLIC_MAPS_JS_KEY, TFL_APP_KEY in Vercel dashboard
+```
