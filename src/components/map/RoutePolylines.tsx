@@ -48,6 +48,8 @@ export function RoutePolylines({
       if (existing.has(leg.id)) {
         const polyline = existing.get(leg.id)!;
         polyline.setOptions({
+          path,
+          strokeColor: colorForLeg(leg),
           strokeWeight: isHovered ? 8 : 5,
           strokeOpacity: isHovered ? 1 : 0.85,
         });
