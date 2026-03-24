@@ -1,6 +1,7 @@
 "use client";
 
-import { Polyline } from "@vis.gl/react-google-maps";
+import { useEffect, useRef } from "react";
+import { useMap } from "@vis.gl/react-google-maps";
 import type { RouteOption } from "@/types/route";
 import { colorForLeg } from "@/lib/utils/colorForMode";
 
@@ -15,25 +16,73 @@ export function RoutePolylines({
   hoveredLegId,
   onHoverLeg,
 }: RoutePolylinesProps) {
-  return (
-    <>
-      {option.legs.map((leg) => {
-        const isHovered = hoveredLegId === leg.id;
-        if (leg.polylinePoints.length < 2) return null;
+  const map = useMap();
+  // Map from leg id → google.maps.Polyline instance
+  const polylinesRef = useRef<Map<string, google.maps.Polyline>>(new Map());
 
-        return (
-          <Polyline
-            key={leg.id}
-            path={leg.polylinePoints}
-            strokeColor={colorForLeg(leg)}
-            strokeWeight={isHovered ? 8 : 5}
-            strokeOpacity={isHovered ? 1 : 0.85}
-            onClick={() => onHoverLeg(isHovered ? null : leg.id)}
-            onMouseover={() => onHoverLeg(leg.id)}
-            onMouseout={() => onHoverLeg(null)}
-          />
+  // Create / update polylines whenever legs or hovered state changes
+  useEffect(() => {
+    if (!map) return;
+
+    const existing = polylinesRef.current;
+    const nextIds = new Set(option.legs.map((l) => l.id));
+
+    // Remove polylines for legs that are no longer in this option
+    existing.forEach((polyline, id) => {
+      if (!nextIds.has(id)) {
+        polyline.setMap(null);
+        existing.delete(id);
+      }
+    });
+
+    // Create or update each leg
+    option.legs.forEach((leg) => {
+      if (leg.polylinePoints.length < 2) return;
+
+      const isHovered = hoveredLegId === leg.id;
+      const path = leg.polylinePoints.map((p) => ({
+        lat: p.lat,
+        lng: p.lng,
+      }));
+
+      if (existing.has(leg.id)) {
+        const polyline = existing.get(leg.id)!;
+        polyline.setOptions({
+          strokeWeight: isHovered ? 8 : 5,
+          strokeOpacity: isHovered ? 1 : 0.85,
+        });
+      } else {
+        const polyline = new google.maps.Polyline({
+          path,
+          strokeColor: colorForLeg(leg),
+          strokeWeight: isHovered ? 8 : 5,
+          strokeOpacity: isHovered ? 1 : 0.85,
+          map,
+        });
+
+        polyline.addListener("mouseover", () => onHoverLeg(leg.id));
+        polyline.addListener("mouseout", () => onHoverLeg(null));
+        polyline.addListener("click", () =>
+          onHoverLeg(hoveredLegId === leg.id ? null : leg.id)
         );
-      })}
-    </>
-  );
+
+        existing.set(leg.id, polyline);
+      }
+    });
+
+    // Cleanup on unmount or option change clears all
+    return () => {
+      // Only clean up when the option changes entirely (handled above)
+    };
+  }, [map, option, hoveredLegId, onHoverLeg]);
+
+  // Clean up all polylines on unmount
+  useEffect(() => {
+    return () => {
+      polylinesRef.current.forEach((p) => p.setMap(null));
+      polylinesRef.current.clear();
+    };
+  }, []);
+
+  return null;
 }
