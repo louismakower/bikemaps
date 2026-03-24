@@ -1,0 +1,1 @@
+You're writing an MVP for a bike navigation webapp. It should be as minimalistic as possible in code (no complicated exceptions/safety). It uses only biking and public transport to find the fastest routes.
