@@ -1,9 +1,14 @@
 const TFL_BASE = "https://api.tfl.gov.uk";
 
-interface TflFareResponse {
-  travelCards?: { cost?: string }[];
-  singleFare?: { cost?: string };
-  passengerType?: string;
+interface TflFaresSection {
+  rows?: {
+    passengerType?: string;
+    ticketsAvailable?: {
+      passengerType?: string;
+      ticketType?: { type?: string };
+      cost?: string;
+    }[];
+  }[];
 }
 
 /**
@@ -21,22 +26,24 @@ export async function getTransitFare(
 
   const res = await fetch(url, { next: { revalidate: 86400 } }); // fares change rarely
   if (!res.ok) {
-    // Fare API can fail for some station pairs — return 0 as fallback
     console.warn(`TfL FareTo API error for ${fromId} → ${toId}: ${res.status}`);
     return 0;
   }
 
-  const data: TflFareResponse[] = await res.json();
+  const data: TflFaresSection[] = await res.json();
 
-  // Find the adult single fare
-  const adultFare = data.find(
-    (d) => !d.passengerType || d.passengerType.toLowerCase() === "adult"
-  );
+  // Walk: sections → rows (Adult) → ticketsAvailable → find cheapest
+  for (const section of data) {
+    for (const row of section.rows ?? []) {
+      if (row.passengerType && row.passengerType.toLowerCase() !== "adult") continue;
+      for (const ticket of row.ticketsAvailable ?? []) {
+        if (ticket.cost) {
+          const parsed = parseFloat(ticket.cost);
+          if (!isNaN(parsed)) return Math.round(parsed * 100);
+        }
+      }
+    }
+  }
 
-  const costStr = adultFare?.singleFare?.cost ?? adultFare?.travelCards?.[0]?.cost;
-  if (!costStr) return 0;
-
-  // Cost is returned as a string like "2.10" (pounds) — convert to pence
-  const parsed = parseFloat(costStr);
-  return isNaN(parsed) ? 0 : Math.round(parsed * 100);
+  return 0;
 }
