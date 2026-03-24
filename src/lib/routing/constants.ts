@@ -1,0 +1,6 @@
+export const MAX_CYCLING_MINUTES = 20;
+export const STATION_SEARCH_RADIUS_M = 2500;
+export const DEFAULT_PENCE_PER_MINUTE = 10; // ~£6/hr
+export const MIN_CYCLING_SUBSTITUTION_SECONDS = 90;
+export const MAX_BOARDING_STATIONS = 10;
+export const MAX_ALIGHTING_STATIONS = 10;

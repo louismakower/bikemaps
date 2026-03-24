@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app:*)",
+      "WebSearch",
+      "WebFetch(domain:tfl.gov.uk)",
+      "WebFetch(domain:api.tfl.gov.uk)",
+      "WebFetch(domain:content.tfl.gov.uk)",
+      "WebFetch(domain:techforum.tfl.gov.uk)",
+      "WebFetch(domain:documenter.getpostman.com)",
+      "WebFetch(domain:www.voidkat.com)",
+      "WebFetch(domain:docs.api.tfl.lu)",
+      "WebFetch(domain:joshblewitt.dev)",
+      "WebFetch(domain:github.com)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --app --src-dir --import-alias \"@/*\" --no-turbopack --yes)",
+      "Bash(npm install:*)",
+      "Bash(npm test:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e \"const m = require\\(''@vis.gl/react-google-maps''\\); console.log\\(Object.keys\\(m\\).filter\\(k => k.toLowerCase\\(\\).includes\\(''poly''\\) || k.toLowerCase\\(\\).includes\\(''line''\\) || k.toLowerCase\\(\\).includes\\(''overlay''\\)\\)\\)\")"
+    ]
+  }
+}
