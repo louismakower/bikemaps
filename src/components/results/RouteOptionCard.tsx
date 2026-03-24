@@ -41,7 +41,7 @@ export function RouteOptionCard({
               isSelected ? "text-green-700" : "text-gray-500"
             }`}
           >
-            {LABEL_TEXT[option.label]}
+            {LABEL_TEXT[option.label!]}
           </span>
           <div className="flex items-baseline gap-1.5 mt-0.5">
             <span className="text-xl font-bold text-gray-900">

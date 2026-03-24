@@ -30,7 +30,7 @@ export function RouteOptions({
             key={option.label}
             option={option}
             isSelected={option.label === selectedLabel}
-            onSelect={() => onSelectOption(option.label)}
+            onSelect={() => onSelectOption(option.label!)}
           />
         ))}
       </div>

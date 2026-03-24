@@ -67,10 +67,10 @@ export async function getTransitJourney(
       let polylinePoints: LatLng[] = [];
       if (leg.path?.lineString) {
         try {
-          // TfL returns GeoJSON-style coordinates as a JSON string: [[lng, lat], ...]
+          // TfL returns coordinates as a JSON string: [[lat, lng], ...]
           const coords: [number, number][] = JSON.parse(leg.path.lineString);
           const decoded = coords
-            .map(([lng, lat]) => ({ lat, lng }))
+            .map(([lat, lng]) => ({ lat, lng }))
             .filter((p) => Math.abs(p.lat) > 0.01 && Math.abs(p.lng) > 0.01);
           if (decoded.length >= 2) polylinePoints = decoded;
         } catch {

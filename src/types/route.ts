@@ -58,7 +58,7 @@ export type Leg = CyclingLeg | TransitLeg | WalkingLeg;
 export type RouteLabel = "fastest" | "cheapest" | "best_value" | "baseline";
 
 export interface RouteOption {
-  label: RouteLabel;
+  label?: RouteLabel;
   legs: Leg[];
   totalTimeMinutes: number;
   farePence: number;
@@ -90,11 +90,11 @@ export interface PlaceInput {
 export interface RouteSearchRequest {
   origin: PlaceInput;
   destination: PlaceInput;
-  valuePencePerMinute?: number; // default 10
 }
 
 export interface RouteSearchResponse {
-  options: RouteOption[];
+  baseline: RouteOption;
+  paretoOptions: RouteOption[];
 }
 
 // ---- Autocomplete ----

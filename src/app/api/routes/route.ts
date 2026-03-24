@@ -13,13 +13,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const options = await findOptimalRoutes(
+    const { baseline, paretoOptions } = await findOptimalRoutes(
       body.origin,
       body.destination,
-      body.valuePencePerMinute ?? 10
     );
 
-    return NextResponse.json({ options });
+    return NextResponse.json({ baseline, paretoOptions });
   } catch (err) {
     console.error("Route search error:", err);
     return NextResponse.json(

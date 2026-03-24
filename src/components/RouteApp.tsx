@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import type {
   PlaceInput,
@@ -11,6 +11,7 @@ import type {
 import { SearchPanel } from "./search/SearchPanel";
 import { RouteOptions } from "./results/RouteOptions";
 import { DEFAULT_PENCE_PER_MINUTE } from "@/lib/routing/constants";
+import { selectLabeledRoutes } from "@/lib/routing/selectLabeledRoutes";
 
 // Map is loaded dynamically to avoid SSR issues with Google Maps
 const MapContainer = dynamic(
@@ -26,9 +27,15 @@ export function RouteApp() {
   const [valuePencePerMinute, setValuePencePerMinute] = useState(DEFAULT_PENCE_PER_MINUTE);
   const [status, setStatus] = useState<AppStatus>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [routeOptions, setRouteOptions] = useState<RouteOption[]>([]);
+  const [baseline, setBaseline] = useState<RouteOption | null>(null);
+  const [paretoOptions, setParetoOptions] = useState<RouteOption[]>([]);
   const [selectedLabel, setSelectedLabel] = useState<RouteLabel>("fastest");
   const [hoveredLegId, setHoveredLegId] = useState<string | null>(null);
+
+  const routeOptions = useMemo(() => {
+    if (!baseline) return [];
+    return selectLabeledRoutes(baseline, paretoOptions, valuePencePerMinute);
+  }, [baseline, paretoOptions, valuePencePerMinute]);
 
   const selectedOption =
     routeOptions.find((o) => o.label === selectedLabel) ?? routeOptions[0] ?? null;
@@ -38,13 +45,14 @@ export function RouteApp() {
 
     setStatus("loading");
     setError(null);
-    setRouteOptions([]);
+    setBaseline(null);
+    setParetoOptions([]);
 
     try {
       const res = await fetch("/api/routes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ origin, destination, valuePencePerMinute }),
+        body: JSON.stringify({ origin, destination }),
       });
 
       const data: RouteSearchResponse & { error?: { message: string } } =
@@ -54,21 +62,16 @@ export function RouteApp() {
         throw new Error(data.error?.message ?? "Failed to find routes");
       }
 
-      if (data.options.length === 0) {
-        throw new Error("No routes found between these locations");
-      }
-
-      setRouteOptions(data.options);
-      // Select "fastest" by default, falling back to first option
-      const labels = data.options.map((o) => o.label);
-      setSelectedLabel(labels.includes("fastest") ? "fastest" : labels[0]);
+      setBaseline(data.baseline);
+      setParetoOptions(data.paretoOptions);
+      setSelectedLabel("fastest");
       setStatus("success");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
       setError(msg);
       setStatus("error");
     }
-  }, [origin, destination, valuePencePerMinute]);
+  }, [origin, destination]);
 
   return (
     <div className="flex h-full">

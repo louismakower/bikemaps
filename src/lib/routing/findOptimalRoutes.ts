@@ -4,7 +4,6 @@ import type {
   PlaceInput,
   RouteCandidate,
   RouteOption,
-  RouteLabel,
   CyclingLeg,
   WalkingLeg,
   TflStation,
@@ -21,7 +20,6 @@ import { paretoFilter } from "./paretoFilter";
 import {
   MAX_CYCLING_MINUTES,
   STATION_SEARCH_RADIUS_M,
-  DEFAULT_PENCE_PER_MINUTE,
 } from "./constants";
 
 function computeBounds(
@@ -67,8 +65,7 @@ function makeDummyCyclingLeg(
 export async function findOptimalRoutes(
   origin: PlaceInput,
   destination: PlaceInput,
-  valuePencePerMinute: number = DEFAULT_PENCE_PER_MINUTE
-): Promise<RouteOption[]> {
+): Promise<{ baseline: RouteOption; paretoOptions: RouteOption[] }> {
   // Step 1: Parallel — find nearby stations + get baseline transit route
   const [boardingStations, alightingStations, baselineResult] =
     await Promise.all([
@@ -78,7 +75,7 @@ export async function findOptimalRoutes(
     ]);
 
   if (boardingStations.length === 0 || alightingStations.length === 0) {
-    return [baselineResult];
+    return { baseline: baselineResult, paretoOptions: [] };
   }
 
   // Step 2: Parallel — batch cycling times to/from stations
@@ -97,7 +94,7 @@ export async function findOptimalRoutes(
     .filter((x) => x.cycling.durationMinutes <= MAX_CYCLING_MINUTES);
 
   if (viableBoarding.length === 0 || viableAlighting.length === 0) {
-    return [baselineResult];
+    return { baseline: baselineResult, paretoOptions: [] };
   }
 
   // Step 4: Build pairs and fetch transit data in parallel
@@ -151,28 +148,17 @@ export async function findOptimalRoutes(
     .filter((c): c is RouteCandidate => c !== null);
 
   if (candidates.length === 0) {
-    return [baselineResult];
+    return { baseline: baselineResult, paretoOptions: [] };
   }
 
   // Step 6: Pareto-filter
   const pareto = paretoFilter(candidates);
 
-  // Step 7: Select labelled options
-  const fastest = minBy(pareto, (c) => c.totalTimeMinutes)!;
-  const cheapest = minBy(pareto, (c) => c.farePence)!;
-  const bestValue = minBy(
-    pareto,
-    (c) => c.totalTimeMinutes + c.farePence / valuePencePerMinute
-  )!;
-
-  const selected = deduplicateCandidates([fastest, cheapest, bestValue]);
-
-  // Step 8: Fetch detailed cycling polylines for selected options
-  const routeOptions = await Promise.all(
-    selected.map(async ({ candidate, label }) =>
+  // Step 7: Fetch detailed cycling polylines for ALL Pareto candidates
+  const paretoOptions = await Promise.all(
+    pareto.map(async (candidate) =>
       buildRouteOption(
         candidate,
-        label,
         origin,
         destination,
         baselineResult.totalTimeMinutes,
@@ -181,12 +167,11 @@ export async function findOptimalRoutes(
     )
   );
 
-  return [baselineResult, ...routeOptions];
+  return { baseline: baselineResult, paretoOptions };
 }
 
 async function buildRouteOption(
   candidate: RouteCandidate,
-  label: RouteLabel,
   origin: PlaceInput,
   destination: PlaceInput,
   baselineTimeMinutes: number,
@@ -229,7 +214,6 @@ async function buildRouteOption(
     (cyclingLegEnd?.distanceMeters ?? 0);
 
   return {
-    label,
     legs,
     totalTimeMinutes: candidate.totalTimeMinutes,
     farePence: candidate.farePence,
@@ -341,23 +325,3 @@ async function getBaselineRoute(
   }
 }
 
-function minBy<T>(arr: T[], fn: (x: T) => number): T | undefined {
-  return arr.reduce((best, x) => (fn(x) < fn(best) ? x : best), arr[0]);
-}
-
-function deduplicateCandidates(
-  labelled: RouteCandidate[]
-): { candidate: RouteCandidate; label: RouteLabel }[] {
-  const labels: RouteLabel[] = ["fastest", "cheapest", "best_value"];
-  const seen = new Set<RouteCandidate>();
-  const result: { candidate: RouteCandidate; label: RouteLabel }[] = [];
-
-  labelled.forEach((candidate, i) => {
-    if (!seen.has(candidate)) {
-      seen.add(candidate);
-      result.push({ candidate, label: labels[i] });
-    }
-  });
-
-  return result;
-}
