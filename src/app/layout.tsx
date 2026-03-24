@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Brompton — Bike + Transit Navigation",
+  title: "PennyFarething — Bike + Transit Navigation",
   description:
     "Find the fastest, cheapest routes combining your folding bike with London's transit network",
 };

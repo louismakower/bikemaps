@@ -5,9 +5,9 @@ import type {
   RouteCandidate,
   RouteOption,
   CyclingLeg,
-  WalkingLeg,
   TflStation,
 } from "@/types/route";
+import { getWalkingDetail } from "./getWalkingDetail";
 import { findNearbyStations } from "./findNearbyStations";
 import {
   batchCyclingTimesFromOrigin,
@@ -198,9 +198,23 @@ async function buildRouteOption(
       : null,
   ]);
 
+  // Fetch road-following walking directions for interchange walks
+  const detailedTransitLegs = await Promise.all(
+    candidate.transitLegs.map((leg) => {
+      if (leg.type !== "walking") return leg;
+      return getWalkingDetail(
+        leg.startLocation,
+        leg.endLocation,
+        leg.from,
+        leg.to,
+        leg.id
+      );
+    })
+  );
+
   const legs = [
     ...(cyclingLegStart ? [cyclingLegStart] : []),
-    ...candidate.transitLegs,
+    ...detailedTransitLegs,
     ...(cyclingLegEnd ? [cyclingLegEnd] : []),
   ];
 
@@ -271,30 +285,14 @@ async function getBaselineRoute(
       transitEndpoints
     );
 
-    // Add walking legs for baseline (simplified — show transit legs only)
-    const walkStart: WalkingLeg = {
-      type: "walking",
-      id: "walk-start",
-      durationMinutes: 5,
-      distanceMeters: 400,
-      polylinePoints: [],
-      from: origin.description,
-      to: "Station",
-      startLocation: origin.location,
-      endLocation: origin.location,
-    };
+    // Fetch walking directions for baseline start/end legs
+    const firstTransitStart = journey.transitLegs[0]?.startLocation ?? origin.location;
+    const lastTransitEnd = journey.transitLegs[journey.transitLegs.length - 1]?.endLocation ?? destination.location;
 
-    const walkEnd: WalkingLeg = {
-      type: "walking",
-      id: "walk-end",
-      durationMinutes: 5,
-      distanceMeters: 400,
-      polylinePoints: [],
-      from: "Station",
-      to: destination.description,
-      startLocation: destination.location,
-      endLocation: destination.location,
-    };
+    const [walkStart, walkEnd] = await Promise.all([
+      getWalkingDetail(origin.location, firstTransitStart, origin.description, "Station", "walk-start"),
+      getWalkingDetail(lastTransitEnd, destination.location, "Station", destination.description, "walk-end"),
+    ]);
 
     return {
       label: "baseline",

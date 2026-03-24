@@ -68,7 +68,7 @@ export function MapContainer(props: MapContainerProps) {
         defaultZoom={DEFAULT_ZOOM}
         gestureHandling="greedy"
         disableDefaultUI={false}
-        mapId="brompton-map"
+        mapId="pennyfarething-map"
         className="w-full h-full"
         style={{ width: "100%", height: "100%" }}
       >

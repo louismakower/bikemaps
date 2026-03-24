@@ -116,5 +116,5 @@ export interface RouteCandidate {
   transitDurationMinutes: number;
   farePence: number;
   totalTimeMinutes: number;
-  transitLegs: TransitLeg[];
+  transitLegs: Leg[];
 }

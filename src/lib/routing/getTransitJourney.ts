@@ -1,4 +1,4 @@
-import type { TransitLeg, LatLng } from "@/types/route";
+import type { TransitLeg, WalkingLeg, Leg, LatLng } from "@/types/route";
 import { decodePolyline } from "./decodePolyline";
 
 const TFL_BASE = "https://api.tfl.gov.uk";
@@ -28,7 +28,7 @@ interface TflLeg {
 
 interface TransitJourneyResult {
   durationMinutes: number;
-  transitLegs: TransitLeg[];
+  transitLegs: Leg[];
 }
 
 export async function getTransitJourney(
@@ -54,55 +54,68 @@ export async function getTransitJourney(
     throw new Error("No journey found between stations");
   }
 
-  const transitLegs: TransitLeg[] = journey.legs
-    .filter((leg) => leg.mode.id !== "walking")
-    .map((leg, i) => {
-      const lineId = leg.routeOptions?.[0]?.lineIdentifier?.id ?? "";
-      const lineName = leg.routeOptions?.[0]?.lineIdentifier?.name ?? leg.mode.name;
-      const lineColor = tflLineColor(lineId);
+  let transitIdx = 0;
+  let walkIdx = 0;
+  const transitLegs: Leg[] = journey.legs.map((leg) => {
+    const startLoc: LatLng = { lat: leg.departurePoint.lat, lng: leg.departurePoint.lon };
+    const endLoc: LatLng = { lat: leg.arrivalPoint.lat, lng: leg.arrivalPoint.lon };
 
-      const startLoc: LatLng = { lat: leg.departurePoint.lat, lng: leg.departurePoint.lon };
-      const endLoc: LatLng = { lat: leg.arrivalPoint.lat, lng: leg.arrivalPoint.lon };
-
-      let polylinePoints: LatLng[] = [];
-      if (leg.path?.lineString) {
-        try {
-          // TfL returns coordinates as a JSON string: [[lat, lng], ...]
-          const coords: [number, number][] = JSON.parse(leg.path.lineString);
-          const decoded = coords
-            .map(([lat, lng]) => ({ lat, lng }))
-            .filter((p) => Math.abs(p.lat) > 0.01 && Math.abs(p.lng) > 0.01);
-          if (decoded.length >= 2) polylinePoints = decoded;
-        } catch {
-          // fall through to straight-line fallback
-        }
-      }
-
-      // Fall back to a straight line between boarding and alighting stops so
-      // transit legs always appear on the map even when TfL omits path data
-      if (polylinePoints.length < 2) {
-        polylinePoints = [startLoc, endLoc];
-      }
-
-      const numStops = Array.isArray(leg.stopPoints) ? leg.stopPoints.length : 0;
-
+    if (leg.mode.id === "walking") {
+      const id = `interchange-walk-${walkIdx++}`;
       return {
-        type: "transit" as const,
-        id: `transit-${i}`,
+        type: "walking" as const,
+        id,
         durationMinutes: leg.duration,
         distanceMeters: leg.distance ?? 0,
-        polylinePoints,
-        line: lineName,
-        lineColor,
-        boardingStop: leg.departurePoint.commonName,
-        alightingStop: leg.arrivalPoint.commonName,
-        numStops,
-        departureTime: leg.departureTime ?? "",
-        arrivalTime: leg.arrivalTime ?? "",
+        polylinePoints: [startLoc, endLoc],
+        from: leg.departurePoint.commonName,
+        to: leg.arrivalPoint.commonName,
         startLocation: startLoc,
         endLocation: endLoc,
-      };
-    });
+      } satisfies WalkingLeg;
+    }
+
+    const lineId = leg.routeOptions?.[0]?.lineIdentifier?.id ?? "";
+    const lineName = leg.routeOptions?.[0]?.lineIdentifier?.name ?? leg.mode.name;
+    const lineColor = tflLineColor(lineId);
+
+    let polylinePoints: LatLng[] = [];
+    if (leg.path?.lineString) {
+      try {
+        const coords: [number, number][] = JSON.parse(leg.path.lineString);
+        const decoded = coords
+          .map(([lat, lng]) => ({ lat, lng }))
+          .filter((p) => Math.abs(p.lat) > 0.01 && Math.abs(p.lng) > 0.01);
+        if (decoded.length >= 2) polylinePoints = decoded;
+      } catch {
+        // fall through to straight-line fallback
+      }
+    }
+
+    if (polylinePoints.length < 2) {
+      polylinePoints = [startLoc, endLoc];
+    }
+
+    const numStops = Array.isArray(leg.stopPoints) ? leg.stopPoints.length : 0;
+    const id = `transit-${transitIdx++}`;
+
+    return {
+      type: "transit" as const,
+      id,
+      durationMinutes: leg.duration,
+      distanceMeters: leg.distance ?? 0,
+      polylinePoints,
+      line: lineName,
+      lineColor,
+      boardingStop: leg.departurePoint.commonName,
+      alightingStop: leg.arrivalPoint.commonName,
+      numStops,
+      departureTime: leg.departureTime ?? "",
+      arrivalTime: leg.arrivalTime ?? "",
+      startLocation: startLoc,
+      endLocation: endLoc,
+    } satisfies TransitLeg;
+  });
 
   return {
     durationMinutes: journey.duration,

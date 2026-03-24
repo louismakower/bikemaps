@@ -13,6 +13,7 @@ import { RouteOptions } from "./results/RouteOptions";
 import { DEFAULT_PENCE_PER_MINUTE } from "@/lib/routing/constants";
 import { selectLabeledRoutes } from "@/lib/routing/selectLabeledRoutes";
 
+
 // Map is loaded dynamically to avoid SSR issues with Google Maps
 const MapContainer = dynamic(
   () => import("./map/MapContainer").then((m) => m.MapContainer),
@@ -24,7 +25,6 @@ type AppStatus = "idle" | "loading" | "success" | "error";
 export function RouteApp() {
   const [origin, setOrigin] = useState<PlaceInput | null>(null);
   const [destination, setDestination] = useState<PlaceInput | null>(null);
-  const [valuePencePerMinute, setValuePencePerMinute] = useState(DEFAULT_PENCE_PER_MINUTE);
   const [status, setStatus] = useState<AppStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [baseline, setBaseline] = useState<RouteOption | null>(null);
@@ -34,8 +34,8 @@ export function RouteApp() {
 
   const routeOptions = useMemo(() => {
     if (!baseline) return [];
-    return selectLabeledRoutes(baseline, paretoOptions, valuePencePerMinute);
-  }, [baseline, paretoOptions, valuePencePerMinute]);
+    return selectLabeledRoutes(baseline, paretoOptions, DEFAULT_PENCE_PER_MINUTE);
+  }, [baseline, paretoOptions]);
 
   const selectedOption =
     routeOptions.find((o) => o.label === selectedLabel) ?? routeOptions[0] ?? null;
@@ -80,12 +80,10 @@ export function RouteApp() {
         <SearchPanel
           origin={origin}
           destination={destination}
-          valuePencePerMinute={valuePencePerMinute}
           isLoading={status === "loading"}
           error={error}
           onOriginChange={setOrigin}
           onDestinationChange={setDestination}
-          onValueChange={setValuePencePerMinute}
           onSearch={handleSearch}
           onErrorDismiss={() => setError(null)}
         />

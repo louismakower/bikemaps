@@ -7,7 +7,7 @@ export function colorForLeg(leg: Leg): string {
     case "transit":
       return leg.lineColor || "#3b82f6"; // blue-500 fallback
     case "walking":
-      return "#94a3b8"; // slate-400
+      return "#60a5fa"; // blue-400
   }
 }
 

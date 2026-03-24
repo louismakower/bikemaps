@@ -3,18 +3,15 @@
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { PlaceAutocomplete } from "./PlaceAutocomplete";
-import { ValueSlider } from "./ValueSlider";
 import type { PlaceInput } from "@/types/route";
 
 interface SearchPanelProps {
   origin: PlaceInput | null;
   destination: PlaceInput | null;
-  valuePencePerMinute: number;
   isLoading: boolean;
   error: string | null;
   onOriginChange: (place: PlaceInput | null) => void;
   onDestinationChange: (place: PlaceInput | null) => void;
-  onValueChange: (value: number) => void;
   onSearch: () => void;
   onErrorDismiss: () => void;
 }
@@ -22,12 +19,10 @@ interface SearchPanelProps {
 export function SearchPanel({
   origin,
   destination,
-  valuePencePerMinute,
   isLoading,
   error,
   onOriginChange,
   onDestinationChange,
-  onValueChange,
   onSearch,
   onErrorDismiss,
 }: SearchPanelProps) {
@@ -65,8 +60,6 @@ export function SearchPanel({
           disabled={isLoading}
         />
       </div>
-
-      <ValueSlider value={valuePencePerMinute} onChange={onValueChange} />
 
       {error && (
         <ErrorBanner message={error} onDismiss={onErrorDismiss} />

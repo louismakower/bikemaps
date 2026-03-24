@@ -40,25 +40,45 @@ export function RoutePolylines({
       if (leg.polylinePoints.length < 2) return;
 
       const isHovered = hoveredLegId === leg.id;
+      const isWalking = leg.type === "walking";
       const path = leg.polylinePoints.map((p) => ({
         lat: p.lat,
         lng: p.lng,
       }));
+
+      const walkColor = colorForLeg(leg);
+      const icons = isWalking
+        ? [{
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              fillColor: walkColor,
+              fillOpacity: 1,
+              strokeColor: walkColor,
+              strokeOpacity: 1,
+              strokeWeight: 1,
+              scale: 2.5,
+            },
+            offset: "0",
+            repeat: "8px",
+          }]
+        : [];
 
       if (existing.has(leg.id)) {
         const polyline = existing.get(leg.id)!;
         polyline.setOptions({
           path,
           strokeColor: colorForLeg(leg),
-          strokeWeight: isHovered ? 8 : 5,
-          strokeOpacity: isHovered ? 1 : 0.85,
+          strokeWeight: isWalking ? 0 : isHovered ? 8 : 5,
+          strokeOpacity: isWalking ? 0 : isHovered ? 1 : 0.85,
+          icons,
         });
       } else {
         const polyline = new google.maps.Polyline({
           path,
           strokeColor: colorForLeg(leg),
-          strokeWeight: isHovered ? 8 : 5,
-          strokeOpacity: isHovered ? 1 : 0.85,
+          strokeWeight: isWalking ? 0 : isHovered ? 8 : 5,
+          strokeOpacity: isWalking ? 0 : isHovered ? 1 : 0.85,
+          icons,
           map,
         });
 
