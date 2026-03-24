@@ -61,15 +61,27 @@ export async function getTransitJourney(
       const lineName = leg.routeOptions?.[0]?.lineIdentifier?.name ?? leg.mode.name;
       const lineColor = tflLineColor(lineId);
 
+      const startLoc: LatLng = { lat: leg.departurePoint.lat, lng: leg.departurePoint.lon };
+      const endLoc: LatLng = { lat: leg.arrivalPoint.lat, lng: leg.arrivalPoint.lon };
+
       let polylinePoints: LatLng[] = [];
       if (leg.path?.lineString) {
         try {
-          // TfL returns GeoJSON-style coordinates as a JSON string
+          // TfL returns GeoJSON-style coordinates as a JSON string: [[lng, lat], ...]
           const coords: [number, number][] = JSON.parse(leg.path.lineString);
-          polylinePoints = coords.map(([lng, lat]) => ({ lat, lng }));
+          const decoded = coords
+            .map(([lng, lat]) => ({ lat, lng }))
+            .filter((p) => Math.abs(p.lat) > 0.01 && Math.abs(p.lng) > 0.01);
+          if (decoded.length >= 2) polylinePoints = decoded;
         } catch {
-          // ignore bad polyline
+          // fall through to straight-line fallback
         }
+      }
+
+      // Fall back to a straight line between boarding and alighting stops so
+      // transit legs always appear on the map even when TfL omits path data
+      if (polylinePoints.length < 2) {
+        polylinePoints = [startLoc, endLoc];
       }
 
       const numStops = Array.isArray(leg.stopPoints) ? leg.stopPoints.length : 0;
@@ -87,8 +99,8 @@ export async function getTransitJourney(
         numStops,
         departureTime: leg.departureTime ?? "",
         arrivalTime: leg.arrivalTime ?? "",
-        startLocation: { lat: leg.departurePoint.lat, lng: leg.departurePoint.lon },
-        endLocation: { lat: leg.arrivalPoint.lat, lng: leg.arrivalPoint.lon },
+        startLocation: startLoc,
+        endLocation: endLoc,
       };
     });
 

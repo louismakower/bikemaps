@@ -219,8 +219,10 @@ async function buildRouteOption(
     ...(cyclingLegEnd ? [cyclingLegEnd] : []),
   ];
 
-  const allPoints = legs.flatMap((l) => l.polylinePoints);
-  const bounds = computeBounds(origin.location, destination.location, allPoints);
+  // Use leg start/end locations for bounds (not polylinePoints — TfL paths can contain
+  // invalid [0, 0] coordinates that would drag the bounding box to the Atlantic Ocean)
+  const legEndpoints = legs.flatMap((l) => [l.startLocation, l.endLocation]);
+  const bounds = computeBounds(origin.location, destination.location, legEndpoints);
 
   const cyclingDistanceMeters =
     (cyclingLegStart?.distanceMeters ?? 0) +
@@ -275,7 +277,15 @@ async function getBaselineRoute(
     durationMinutes = journey.durationMinutes;
     farePence = fare;
 
-    const bounds = computeBounds(origin.location, destination.location);
+    const transitEndpoints = journey.transitLegs.flatMap((l) => [
+      l.startLocation,
+      l.endLocation,
+    ]);
+    const bounds = computeBounds(
+      origin.location,
+      destination.location,
+      transitEndpoints
+    );
 
     // Add walking legs for baseline (simplified — show transit legs only)
     const walkStart: WalkingLeg = {
