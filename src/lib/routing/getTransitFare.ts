@@ -32,18 +32,28 @@ export async function getTransitFare(
 
   const data: TflFaresSection[] = await res.json();
 
-  // Walk: sections → rows (Adult) → ticketsAvailable → find cheapest
+  // Collect all adult tickets, prefer Oyster/contactless over cash
+  const preferred = ["pay as you go", "oyster", "contactless", "offpeak", "off peak"];
+  let bestCost = Infinity;
+  let cashCost = Infinity;
+
   for (const section of data) {
     for (const row of section.rows ?? []) {
       if (row.passengerType && row.passengerType.toLowerCase() !== "adult") continue;
       for (const ticket of row.ticketsAvailable ?? []) {
-        if (ticket.cost) {
-          const parsed = parseFloat(ticket.cost);
-          if (!isNaN(parsed)) return Math.round(parsed * 100);
+        if (!ticket.cost) continue;
+        const parsed = parseFloat(ticket.cost);
+        if (isNaN(parsed)) continue;
+        const type = (ticket.ticketType?.type ?? "").toLowerCase();
+        if (preferred.some((p) => type.includes(p))) {
+          bestCost = Math.min(bestCost, parsed);
+        } else {
+          cashCost = Math.min(cashCost, parsed);
         }
       }
     }
   }
 
-  return 0;
+  const fare = bestCost < Infinity ? bestCost : cashCost < Infinity ? cashCost : 0;
+  return Math.round(fare * 100);
 }
